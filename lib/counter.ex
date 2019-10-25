@@ -21,6 +21,14 @@ defmodule Tapestry.Counter do
     {:ok, {hashList, max, sender, receiver}}
   end
 
+  def handle_call({:some_failed, failedNodesList}, _from, {hashList, max, sender, receiver}) do
+
+    new_hashList = hashList -- failedNodesList
+
+    {:reply, [], {new_hashList, max, sender, receiver}}
+  end
+
+
   def handle_cast({:okk_done, my_max, me, the_receiver}, {hashList, max, sender, receiver}) do
     {max, sender, receiver} =
       if my_max > max do
@@ -32,8 +40,11 @@ defmodule Tapestry.Counter do
     new_hashList = hashList -- [me]
 
     if length(new_hashList) == 0 do
-      IO.puts("Max Requests is #{my_max} from #{sender} to #{receiver}")
+      IO.puts("Maximum Number of hops : #{my_max}")
+      System.halt(1)
     end
+
+
 
     {:noreply, {new_hashList, max, sender, receiver}}
   end

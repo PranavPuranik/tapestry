@@ -10,12 +10,14 @@ defmodule Tapestry.Main do
       {:ok, {numNodes, numRequests,numFailed}}
   end
 
-  def goGoGo(numNodes, sendingTo, numRequests) do
+  def goGoGo(numNodes, sendingTo, numRequests, randomNodesToFail) do
     if sendingTo != 0 do
-      nextNode = "n" <> elem(Enum.at(:ets.lookup(:hashList, Integer.to_string(sendingTo)), 0), 1)
-      GenServer.cast(String.to_atom(nextNode), {:goGoGo, numNodes, numRequests})
+      nextNode = elem(Enum.at(:ets.lookup(:hashList, Integer.to_string(sendingTo)), 0), 1)
+      if Enum.member?(randomNodesToFail, sendingTo) == false do
+        GenServer.cast(String.to_atom("n" <> nextNode), {:goGoGo, numNodes, numRequests, randomNodesToFail})
+      end
       # IO.puts "go go go #{sendingTo}"
-      goGoGo(numNodes, sendingTo - 1, numRequests)
+      goGoGo(numNodes, sendingTo - 1, numRequests, randomNodesToFail)
     end
   end
 
@@ -121,8 +123,8 @@ defmodule Tapestry.Main do
       {:reply, :ok, {numNodes, numRequests,numFailed}}
   end
 
-  def handle_call({:startMessaging},_from,{numNodes, numRequests,numFailed}) do
-      goGoGo(numNodes, 1, numRequests)
+  def handle_call({:startMessaging, randomNodesToFail},_from,{numNodes, numRequests,numFailed}) do
+      goGoGo(numNodes, numNodes, numRequests, randomNodesToFail)
     {:reply, :ok, {numNodes, numRequests,numFailed}}
   end
 

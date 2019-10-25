@@ -113,16 +113,23 @@ defmodule TapestryNode do
     routeTableBuilder(newroute, tail, selfid)
   end
 
-  def selectNodeToSend(selfid, listOfNodes) do
+    def selectNodeToSend(selfid, listOfNodes, randomNodesToFail) do
     x = Enum.random(listOfNodes)
-    someNode = "n" <> elem(Enum.at(:ets.lookup(:hashList, Integer.to_string(x)), 0), 1)
-    # IO.inspect someNode
-    if someNode == selfid do
-      # IO.puts("here")
-      new_listOfNodes = listOfNodes -- [x]
-      selectNodeToSend(selfid, new_listOfNodes)
+
+    hashOfReceiver = elem(Enum.at(:ets.lookup(:hashList, Integer.to_string(x)), 0), 1)
+    if Enum.member?(randomNodesToFail, hashOfReceiver) == false do
+      someNode = "n" <> hashOfReceiver
+      # IO.inspect someNode
+      if someNode == selfid do
+        # IO.puts("here")
+        new_listOfNodes = listOfNodes -- [x]
+        selectNodeToSend(selfid, new_listOfNodes, randomNodesToFail)
+      else
+        someNode
+      end
     else
-      someNode
+      new_listOfNodes = listOfNodes -- [x]
+      selectNodeToSend(selfid, new_listOfNodes, randomNodesToFail)
     end
   end
 
@@ -137,12 +144,12 @@ defmodule TapestryNode do
   end
 
   def handle_call({:printTables},_from,{selfid, routetable,backupRoutetable1,backupRoutetable2, numRequests, {reqCompleted, prevhops, highest}, backpointerList}) do
-    # IO.puts "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
-    # IO.puts("#{selfid}=#{inspect(routetable)}")
-    # IO.puts "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
-    # IO.puts("#{selfid}=#{inspect(backupRoutetable1)}")
-    # IO.puts "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
-    # IO.puts("#{selfid}=#{inspect(backupRoutetable2)}")
+     IO.puts "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+     IO.puts("#{selfid}=#{inspect(routetable)}")
+     IO.puts "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+     IO.puts("#{selfid}=#{inspect(backupRoutetable1)}")
+     IO.puts "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+     IO.puts("#{selfid}=#{inspect(backupRoutetable2)}")
     {:reply,[],{selfid, routetable,backupRoutetable1,backupRoutetable2, numRequests, {reqCompleted, prevhops, highest}, backpointerList}}
   end
 
@@ -233,12 +240,12 @@ defmodule TapestryNode do
       {:reply,[],{selfid, routetable,backupRoutetable1,backupRoutetable2, numRequests, {reqCompleted, prevhops, highest}, backpointerList}}
   end
 
-  def handle_cast({:goGoGo, numNodes, numRequests},{selfid, routetable,backupRoutetable1,backupRoutetable2, numRequests2, zzzz, backpointerList}) do
+  def handle_cast({:goGoGo, numNodes, numRequests, randomNodesToFail},{selfid, routetable,backupRoutetable1,backupRoutetable2, numRequests2, zzzz, backpointerList}) do
     # IO.inspect(selfid)
     if numRequests != 0 do
       listOfNodes = Enum.map(1..numNodes, fn n -> n end)
       # IO.inspect(listOfNodes)
-      to_send = selectNodeToSend("n" <> selfid, listOfNodes)
+      to_send = selectNodeToSend("n" <> selfid, listOfNodes, randomNodesToFail)
       {level, slot} = anotherMatch(String.slice(to_send, 1..10), selfid, routetable)
       my_closest_connection = cond do
                                 routetable[level][slot] != nil ->
@@ -251,11 +258,18 @@ defmodule TapestryNode do
       if my_closest_connection == selfid do
         IO.puts("Sending self")
       end
-      GenServer.cast(
-        String.to_atom("n" <> my_closest_connection),
-        {:routing, numNodes, numRequests, 1, "n" <> selfid, to_send, [my_closest_connection]}
-      )
-      GenServer.cast(self(), {:goGoGo, numNodes, numRequests - 1})
+      if my_closest_connection == nil do
+          IO.puts "to_send=#{inspect to_send} , my_closest_connection=#{inspect my_closest_connection}"
+          _=GenServer.call(String.to_atom("n"<>my_closest_connection),{:printTables})
+          IO.inspect(randomNodesToFail, limit: :infinity)
+          System.halt(1)
+          #GenServer.cast(self(), {:goGoGo, numNodes, numRequests, randomNodesToFail})
+      end
+      # GenServer.cast(
+      #   String.to_atom("n" <> my_closest_connection),
+      #   {:routing, numNodes, numRequests, 1, "n" <> selfid, to_send, [my_closest_connection]}
+      # )
+      # GenServer.cast(self(), {:goGoGo, numNodes, numRequests - 1, randomNodesToFail})
     end
     {:noreply, {selfid, routetable,backupRoutetable1,backupRoutetable2, numRequests2, zzzz, backpointerList}}
   end
@@ -335,15 +349,15 @@ defmodule TapestryNode do
       else
         {myMaxHops, highestReceiver}
       end
-      IO.inspect routetable
-      IO.puts "There you go... #{inspect list_traverse}"
+      #IO.inspect routetable
+      #IO.puts "There you go... #{inspect list_traverse}"
 
     reqCompleted = reqCompleted + 1
     # IO.puts "#{myMaxHops} #{highestReceiver} #{reqCompleted}"
     # IO.puts "#{selfid} #{receiverId} #{reqCompleted}"
     if reqCompleted == numRequests do
       # GenServer.cast(Process.whereis(:main), {:})
-      IO.puts("max for #{selfid} is #{myMaxHops} to #{String.slice(highestReceiver, 1..10)}")
+      #IO.puts("max for #{selfid} is #{myMaxHops} to #{String.slice(highestReceiver, 1..10)}")
       GenServer.cast(Tapestry.Counter, {:okk_done, myMaxHops, selfid, highestReceiver})
     end
     {:noreply,{selfid, routetable,backupRoutetable1,backupRoutetable2, numRequests, {reqCompleted, myMaxHops, highestReceiver},backpointerList}}
@@ -366,7 +380,7 @@ defmodule TapestryNode do
                               end
       new_list_traverse = list_traverse ++ [my_closest_connection]
       if my_closest_connection == selfid do
-        IO.puts("Sending self")
+        #IO.puts("Sending self")
       end
       # IO.puts("#{routetable[level][slot]}")
       GenServer.cast(
