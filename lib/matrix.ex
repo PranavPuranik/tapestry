@@ -1,3 +1,6 @@
+# Reference : matrix.ex is a module used to store and easily access Routing tables in the
+# tapestry network, available on the websitehttps://blog.danielberkompas.com/2016/04/23/multidimensional-arrays-in-el
+# ixir/
 defmodule Matrix do
   @moduledoc """
   Helpers for working with multidimensional lists, also called matrices.
