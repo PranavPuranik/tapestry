@@ -16,9 +16,6 @@ defmodule Main do
     _=GenServer.call(Tapestry.Main,{:createNodes},:infinity)
     _=GenServer.call(Tapestry.Main,{:initRoutingTables,hashList},:infinity)
     _=GenServer.call(Tapestry.Main,{:initLastNode,hashList},:infinity)
-    #_ =Enum.map hashList,fn x ->
-    #  _=GenServer.call(String.to_atom("n"<>x),{:printTables})
-    #end
     randomNodesToFail=GenServer.call(Tapestry.Main,{:failNodesInit,hashList},:infinity)
     _=GenServer.call(Tapestry.Counter,{:some_failed,randomNodesToFail},:infinity)
     _=GenServer.call(Tapestry.Main,{:killNodes,randomNodesToFail},:infinity)

@@ -144,12 +144,12 @@ defmodule TapestryNode do
   end
 
   def handle_call({:printTables},_from,{selfid, routetable,backupRoutetable1,backupRoutetable2, numRequests, {reqCompleted, prevhops, highest}, backpointerList}) do
-     IO.puts "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
-     IO.puts("#{selfid}=#{inspect(routetable)}")
-     IO.puts "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
-     IO.puts("#{selfid}=#{inspect(backupRoutetable1)}")
-     IO.puts "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
-     IO.puts("#{selfid}=#{inspect(backupRoutetable2)}")
+     # IO.puts "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+     # IO.puts("#{selfid}=#{inspect(routetable)}")
+     # IO.puts "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+     # IO.puts("#{selfid}=#{inspect(backupRoutetable1)}")
+     # IO.puts "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+     # IO.puts("#{selfid}=#{inspect(backupRoutetable2)}")
     {:reply,[],{selfid, routetable,backupRoutetable1,backupRoutetable2, numRequests, {reqCompleted, prevhops, highest}, backpointerList}}
   end
 
@@ -254,26 +254,15 @@ defmodule TapestryNode do
                                   backupRoutetable2[level][slot]
                                 true ->
                                   somlist = Enum.filter(Matrix.to_list(routetable[level]),& !is_nil(&1)) -- [selfid]
-                                  a = special_case_close_match(slot,1, length(somlist), somlist,selfid)
-                                  IO.inspect a
-                                  a
+                                  special_case_close_match(slot,1, length(somlist), somlist,selfid, [])
                                   #Enum.random(Enum.filter(Matrix.to_list(routetable[level]),& !is_nil(&1)) -- [selfid])
                               end
       if my_closest_connection == selfid do
-        IO.puts("Sending self")
-      end
-      if my_closest_connection == nil do
-          IO.puts "to_send=#{inspect to_send} , my_closest_connection=#{inspect my_closest_connection}#{level}#{slot} selfid=#{inspect selfid}"
-          IO.inspect(routetable, limit: :infinity)
-          IO.inspect(backupRoutetable1, limit: :infinity)
-          IO.inspect(backupRoutetable2, limit: :infinity)
-          IO.inspect(randomNodesToFail, limit: :infinity)
-          System.halt(1)
-          #GenServer.cast(self(), {:goGoGo, numNodes, numRequests, randomNodesToFail})
+        #IO.puts("Sending self")
       end
       GenServer.cast(
         String.to_atom("n" <> my_closest_connection),
-        {:routing, numNodes, numRequests, 1, "n" <> selfid, to_send, [my_closest_connection]}
+        {:routing, numNodes, numRequests, 1, "n" <> selfid, to_send, [selfid, my_closest_connection]}
       )
       GenServer.cast(self(), {:goGoGo, numNodes, numRequests - 1, randomNodesToFail})
     end
@@ -369,18 +358,18 @@ defmodule TapestryNode do
     {:noreply,{selfid, routetable,backupRoutetable1,backupRoutetable2, numRequests, {reqCompleted, myMaxHops, highestReceiver},backpointerList}}
   end
 
-  def special_case_close_match( slot, iteration, len, routetable,selfid) do
+  def special_case_close_match( slot, iteration, len, routetable,selfid, list_traverse) do
     rightPointer = slot+iteration
     leftPointer = slot - iteration
     cond do
-      rightPointer < len && Enum.at(routetable,rightPointer) != nil && Enum.at(routetable,rightPointer) != selfid->
+      rightPointer < len && Enum.at(routetable,rightPointer) != nil && Enum.at(routetable,rightPointer) != selfid && Enum.member?(list_traverse,Enum.at(routetable,rightPointer)) == false->
         #IO.inspect Enum.at(routetable,rightPointer)
         Enum.at(routetable,rightPointer)
-      leftPointer >= 0 && Enum.at(routetable,leftPointer) != nil && Enum.at(routetable,rightPointer) != selfid->
+      leftPointer >= 0 && Enum.at(routetable,leftPointer) != nil && Enum.at(routetable,rightPointer) != selfid && Enum.member?(list_traverse,Enum.at(routetable,leftPointer)) == false->
         #IO.inspect Enum.at(routetable,leftPointer)
         Enum.at(routetable,leftPointer)
       true ->
-        special_case_close_match( slot, iteration+1, len, routetable,selfid)
+        special_case_close_match( slot, iteration+1, len, routetable,selfid,list_traverse)
     end
 
   end
@@ -403,9 +392,7 @@ defmodule TapestryNode do
                               true ->
                                 #somlist = Enum.filter(Matrix.to_list(routetable[level]),& !is_nil(&1)) -- [selfid]
                                  somlist = Matrix.to_list(routetable[level])
-                                 a = special_case_close_match(slot,1, length(somlist), somlist,selfid)
-                                 IO.inspect a
-                                 a
+                                 special_case_close_match(slot,1, length(somlist), somlist,selfid, list_traverse)
                                  #Enum.random(Enum.filter(Matrix.to_list(routetable[level]),& !is_nil(&1)) -- [selfid])
                               end
       new_list_traverse = list_traverse ++ [my_closest_connection]
