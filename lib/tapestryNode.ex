@@ -48,7 +48,7 @@ defmodule TapestryNode do
   end
 
   def special_case(level, _selfid, routetable) do
-    IO.puts("special_case #{routetable[level][0]}")
+    #IO.puts("special_case #{routetable[level][0]}")
   end
 
   def anotherMatch(nodeid, selfid, routetable) do
