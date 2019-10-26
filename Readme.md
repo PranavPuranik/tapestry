@@ -25,7 +25,7 @@ We have also implemented the bonus, which is working well.
 
 #### What is the largest network you managed to deal with
 ---------------
-8000 node. Max hops recorded were 6.
+5000 node. Max hops recorded were 4.
 
 #### Steps to run
 -------------
